@@ -1,6 +1,12 @@
 redis-collectd-plugin
 =====================
 
+### Fork description
+
+This is a fork of [redis_info plugin](https://github.com/powdahound/redis-collectd-plugin). It should be compatible in every way, except it uses Python redis library to fetch the info, and also allows to check sizes/values of arbitrary keys - which is useful for monitoring things like Celery queue lengths.
+
+### Original plugin
+
 A [Redis](http://redis.io) plugin for [collectd](http://collectd.org) using collectd's [Python plugin](http://collectd.org/documentation/manpages/collectd-python.5.shtml).
 
 You can capture any kind of Redis metrics like:
@@ -16,7 +22,7 @@ You can capture any kind of Redis metrics like:
 
 Install
 -------
- 1. Place redis_info.py in /opt/collectd/lib/collectd/plugins/python (assuming you have collectd installed to /opt/collectd).
+ 1. Place redis_keys.py in /opt/collectd/lib/collectd/plugins/python (assuming you have collectd installed to /opt/collectd).
  2. Configure the plugin (see below).
  3. Restart collectd.
 
@@ -33,9 +39,9 @@ Add the following to your collectd config **or** use the included redis.conf.
 
     <Plugin python>
       ModulePath "/opt/collectd/lib/collectd/plugins/python"
-      Import "redis_info"
+      Import "redis_keys"
 
-      <Module redis_info>
+      <Module redis_keys>
         Host "localhost"
         Port 6379
         # Un-comment to use AUTH
@@ -74,9 +80,9 @@ You can configure to monitor multiple redis instances by the same machine by rep
 ```
 <Plugin python>
   ModulePath "/opt/collectd_plugins"
-  Import "redis_info"
+  Import "redis_keys"
 
-  <Module redis_info>
+  <Module redis_keys>
     Host "127.0.0.1"
     Port 9100
     Verbose true
@@ -86,7 +92,7 @@ You can configure to monitor multiple redis instances by the same machine by rep
     Redis_used_memory_peak "bytes"
   </Module>
 
-  <Module redis_info>
+  <Module redis_keys>
     Host "127.0.0.1"
     Port 9101
     Verbose true
@@ -96,8 +102,8 @@ You can configure to monitor multiple redis instances by the same machine by rep
     Redis_used_memory_peak "bytes"
     Redis_master_repl_offset "gauge"
   </Module>
-  
-  <Module redis_info>
+
+  <Module redis_keys>
     Host "127.0.0.1"
     Port 9102
     Verbose true
@@ -118,20 +124,20 @@ These 3 redis instances listen on different ports, they have different plugin_in
 "plugin_instance" => "127.0.0.1:9102",
 ```
 
-These values will be part of the metric name emitted by collectd, e.g. ```collectd.redis_info.127.0.0.1:9100.bytes.used_memory```
+These values will be part of the metric name emitted by collectd, e.g. ```collectd.redis_keys.127.0.0.1:9100.bytes.used_memory```
 
 If you want to set a static value for the plugin instance, use the ```Instance``` configuration option:
 
 ```
 ...
-  <Module redis_info>
+  <Module redis_keys>
     Host "127.0.0.1"
     Port 9102
     Instance "redis-prod"
   </Module>
 ...
 ```
-This will result in metric names like: ```collectd.redis_info.redis-prod.bytes.used_memory```
+This will result in metric names like: ```collectd.redis_keys.redis-prod.bytes.used_memory```
 
 ```Instance``` can be empty, in this case the name of the metric will not contain any reference to the host/port. If it is omitted, the host:port value is added to the metric name.
 
