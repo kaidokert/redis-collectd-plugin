@@ -5,6 +5,10 @@ redis-collectd-plugin
 
 This is a fork of [redis_info plugin](https://github.com/powdahound/redis-collectd-plugin). It should be compatible in every way, except it uses Python redis library to fetch the info, and also allows to check sizes/values of arbitrary keys - which is useful for monitoring things like Celery queue lengths.
 
+Keys can be monitored with Key_xx settings. For lists/sets/hashes, length of the item is reported, for strings int/float parsed value is reported.
+
+missing_key_value config parameter sets the value to report when configured keys are missing from Redis, defaults to 0, you might prefer -1 for example
+
 ### Original plugin
 
 A [Redis](http://redis.io) plugin for [collectd](http://collectd.org) using collectd's [Python plugin](http://collectd.org/documentation/manpages/collectd-python.5.shtml).
@@ -49,6 +53,12 @@ Add the following to your collectd config **or** use the included redis.conf.
         Verbose false
         #Instance "instance_1"
         # Redis metrics to collect (prefix with Redis_)
+
+        Key__kombu.binding.celery "gauge"
+        Key__kombu.binding.celeryev "gauge"
+        Key_task-aborts "counter"
+        Key_unacked "gauge"
+
         Redis_db0_keys "gauge"
         Redis_uptime_in_seconds "gauge"
         Redis_uptime_in_days "gauge"

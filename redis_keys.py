@@ -29,10 +29,27 @@
 # collectd-python:
 #   http://collectd.org/documentation/manpages/collectd-python.5.shtml
 
-import collectd
+
+import collections
 import redis
 import redis.exceptions
 import re
+import argparse
+
+try:
+    import collectd
+except:
+    fake_collect = collections.namedtuple('fakec',
+                                          ['register_config','register_read',
+                                           'info','warning','error','Values'])
+    class fake_value:
+        def dispatch(self):
+            pass
+    def dbgprint(msg):
+        print msg
+    stub = lambda x: 0
+    collectd = fake_collect(  stub, stub, dbgprint, dbgprint, dbgprint,
+                              lambda plugin: fake_value())
 
 # Verbose logging on/off. Override in config by specifying 'Verbose'.
 VERBOSE_LOGGING = False
@@ -175,3 +192,29 @@ def log_verbose(msg):
 # register callbacks
 collectd.register_config(configure_callback)
 collectd.register_read(read_callback)
+
+def list_all(r, exclude):
+    p = re.compile(exclude)
+    for k in r.keys():
+        if p.search(k):
+            continue
+        print k, key_metric(r, k)
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('host')
+    parser.add_argument('--port', type=int, default=6379)
+    parser.add_argument('--all', action='store_true')
+    parser.add_argument('--names')
+    parser.add_argument('--exclude', default= '^:1.*')
+    args = parser.parse_args()
+    if len(args.__dict__):
+        r = redis.StrictRedis(host=args.host,port=args.port)
+        if args.all:
+            list_all(r, args.exclude)
+        if args.names:
+            keys = [ args.names ]
+            if ',' in args.names:
+                keys = args.names.split(',')
+            for key in keys:
+                print key, key_metric(r, key)
