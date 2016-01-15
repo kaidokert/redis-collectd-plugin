@@ -31,7 +31,7 @@
 
 import collectd
 import redis
-import socket
+import redis.exceptions
 import re
 
 # Verbose logging on/off. Override in config by specifying 'Verbose'.
@@ -41,82 +41,6 @@ CONFIGS = []
 REDIS_INFO = {}
 
 PREFIX = 'redis_keys plugin'
-
-def fetch_info( conf ):
-    """Connect to Redis server and request info"""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((conf['host'], conf['port']))
-        log_verbose('Connected to Redis at %s:%s' % (conf[ 'host' ], conf['port']))
-    except socket.error, e:
-        collectd.error('%s: Error connecting to %s:%d - %r'
-                       % (PREFIX, conf['host'], conf['port'], e))
-        return None
-
-    fp = s.makefile('r')
-
-    if conf['auth'] is not None:
-        log_verbose('Sending auth command')
-        s.sendall('auth %s\r\n' % (conf['auth']))
-
-        status_line = fp.readline()
-        if not status_line.startswith('+OK'):
-            # -ERR invalid password
-            # -ERR Client sent AUTH, but no password is set
-            collectd.error('%s: Error sending auth to %s:%d - %r'
-                           % (PREFIX, conf['host'], conf['port'], status_line))
-            return None
-
-    log_verbose('Sending info command')
-    s.sendall('info\r\n')
-
-    status_line = fp.readline()
-
-    if status_line.startswith('-'):
-        collectd.error('%s: Error response from %s:%d - %r'
-                       % (PREFIX, conf['host'], conf['port'], status_line))
-        s.close()
-        return None
-
-    content_length = int(status_line[1:-1]) # status_line looks like: $<content_length>
-    data = fp.read(content_length)
-    log_verbose('Received data: %s' % data)
-    s.close()
-
-    linesep = '\r\n' if '\r\n' in data else '\n'
-    return parse_info(data.split(linesep))
-
-
-def parse_info(info_lines):
-    """Parse info response from Redis"""
-    info = {}
-    for line in info_lines:
-        if "" == line or line.startswith('#'):
-            continue
-
-        if ':' not in line:
-            collectd.warning('%s: Bad format for info line: %s'
-                             % (PREFIX, line))
-            continue
-
-        key, val = line.split(':')
-
-        # Handle multi-value keys (for dbs and slaves).
-        # db lines look like "db0:keys=10,expire=0"
-        # slave lines look like "slave0:ip=192.168.0.181,port=6379,state=online,offset=1650991674247,lag=1"
-        if ',' in val:
-            split_val = val.split(',')
-            for sub_val in split_val:
-                k, _, v = sub_val.rpartition('=')
-                sub_key = "{0}_{1}".format(key, k)
-                info[sub_key] = v
-        else:
-            info[key] = val
-
-    # compatibility with pre-2.6 redis (used changes_since_last_save)
-    info["changes_since_last_save"] = info.get("changes_since_last_save", info.get("rdb_changes_since_last_save"))
-
-    return info
 
 def configure_callback(conf):
     """Receive configuration block"""
@@ -186,7 +110,13 @@ def read_callback():
         get_metrics( conf )
 
 def get_metrics( conf ):
-    info = fetch_info( conf )
+    info = None
+    r = redis.StrictRedis(host=conf['host'],port=conf['port'], password=conf['auth'])
+    try:
+        info = r.info()
+    except redis.exceptions.ConnectionError,e:
+        collectd.error('%s: Error connecting to %s:%d - %r'
+                       % (PREFIX, conf['host'], conf['port'], e))
 
     if not info:
         collectd.error('%s: No info received' % PREFIX)
