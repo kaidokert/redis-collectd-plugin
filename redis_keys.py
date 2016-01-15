@@ -39,6 +39,7 @@ VERBOSE_LOGGING = False
 
 CONFIGS = []
 REDIS_INFO = {}
+KEY_INFO = {}
 
 PREFIX = 'redis_keys plugin'
 
@@ -48,12 +49,16 @@ def configure_callback(conf):
     port = None
     auth = None
     instance = None
+    missing_key_value = 0
 
+    redis_pat = re.compile(r'redis_(.*)$', re.M|re.I)
+    key_pat = re.compile(r'key_(.*)$', re.M|re.I)
     for node in conf.children:
         key = node.key.lower()
         val = node.values[0]
         log_verbose('Analyzing config %s key (value: %s)' % (key, val))
-        searchObj = re.search( r'redis_(.*)$', key, re.M|re.I)
+        search_redis = redis_pat.search(key)
+        search_key = key_pat.search(key)
 
         if key == 'host':
             host = val
@@ -66,17 +71,23 @@ def configure_callback(conf):
             VERBOSE_LOGGING = bool(node.values[0]) or VERBOSE_LOGGING
         elif key == 'instance':
             instance = val
-        elif searchObj:
-            log_verbose('Matching expression found: key: %s - value: %s' % (searchObj.group(1), val))
+        elif key == 'missing_key_value':
+            missing_key_value = int(val)
+        elif search_redis:
+            log_verbose('Matching redis expression found: key: %s - value: %s' % (search_redis.group(1), val))
             global REDIS_INFO
-            REDIS_INFO[searchObj.group(1)] = val
+            REDIS_INFO[search_redis.group(1)] = val
+        elif search_key:
+            log_verbose('Matching key expression found: key: %s - value: %s' % (search_key.group(1), val))
+            global KEY_INFO
+            KEY_INFO[search_key.group(1)] = val
         else:
             collectd.warning('%s: Unknown config key: %s.' % (PREFIX, key) )
             continue
 
     log_verbose('Configured with host=%s, port=%s, instance name=%s, using_auth=%s' % ( host, port, instance, auth!=None))
 
-    CONFIGS.append( { 'host': host, 'port': port, 'auth':auth, 'instance':instance } )
+    CONFIGS.append( { 'host': host, 'port': port, 'auth':auth, 'instance':instance, 'missing_key_value' : missing_key_value } )
 
 def dispatch_value(info, key, type, plugin_instance=None, type_instance=None):
     """Read a key from info response data and dispatch a value"""
@@ -134,6 +145,25 @@ def get_metrics( conf ):
             dispatch_value(info, 'total_commands_processed', 'counter', plugin_instance, 'commands_processed')
         else:
             dispatch_value(info, key, val, plugin_instance)
+
+    for key, val in KEY_INFO.items():
+        metric,_ = key_metric(r, key)
+        if metric is None:
+            metric = conf['missing_key_value']
+        dispatch_value({ key : metric}, key, val, plugin_instance)
+
+
+def key_metric(r, key):
+    keytype = r.type(key)
+    get_metric = {
+        'list'  :lambda r,k: r.llen(k),
+        'hash'  :lambda r,k: r.hlen(k),
+        'set'   :lambda r,k: r.scard(k),
+        'zset'  :lambda r,k: r.zcard(k),
+        'string':lambda r,k: r.get(k),
+        'none'  :lambda r,k: None
+    }
+    return get_metric[keytype](r,key) , keytype
 
 
 def log_verbose(msg):
