@@ -97,7 +97,7 @@ def configure_callback(conf):
         elif search_key:
             log_verbose('Matching key expression found: key: %s - value: %s' % (search_key.group(1), val))
             global KEY_INFO
-            KEY_INFO[search_key.group(1)] = val
+            KEY_INFO[search_key.group(1)] = node.values
         else:
             collectd.warning('%s: Unknown config key: %s.' % (PREFIX, key) )
             continue
@@ -164,7 +164,10 @@ def get_metrics( conf ):
             dispatch_value(info, key, val, plugin_instance)
 
     for key, val in KEY_INFO.items():
-        metric,_ = key_metric(r, key)
+        keyname = key
+        if len(val) > 1:
+            keyname = val[1]
+        metric,_ = key_metric(r, keyname)
         if metric is None:
             metric = conf['missing_key_value']
         dispatch_value({ key : metric}, key, val, plugin_instance)
