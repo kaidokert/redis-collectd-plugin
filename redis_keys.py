@@ -1,4 +1,4 @@
-# redis-collectd-plugin - redis_info.py
+# redis-collectd-plugin - redis_keys.py
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -30,6 +30,7 @@
 #   http://collectd.org/documentation/manpages/collectd-python.5.shtml
 
 import collectd
+import redis
 import socket
 import re
 
@@ -39,6 +40,8 @@ VERBOSE_LOGGING = False
 CONFIGS = []
 REDIS_INFO = {}
 
+PREFIX = 'redis_keys plugin'
+
 def fetch_info( conf ):
     """Connect to Redis server and request info"""
     try:
@@ -46,8 +49,8 @@ def fetch_info( conf ):
         s.connect((conf['host'], conf['port']))
         log_verbose('Connected to Redis at %s:%s' % (conf[ 'host' ], conf['port']))
     except socket.error, e:
-        collectd.error('redis_info plugin: Error connecting to %s:%d - %r'
-                       % (conf['host'], conf['port'], e))
+        collectd.error('%s: Error connecting to %s:%d - %r'
+                       % (PREFIX, conf['host'], conf['port'], e))
         return None
 
     fp = s.makefile('r')
@@ -60,8 +63,8 @@ def fetch_info( conf ):
         if not status_line.startswith('+OK'):
             # -ERR invalid password
             # -ERR Client sent AUTH, but no password is set
-            collectd.error('redis_info plugin: Error sending auth to %s:%d - %r'
-                           % (conf['host'], conf['port'], status_line))
+            collectd.error('%s: Error sending auth to %s:%d - %r'
+                           % (PREFIX, conf['host'], conf['port'], status_line))
             return None
 
     log_verbose('Sending info command')
@@ -70,8 +73,8 @@ def fetch_info( conf ):
     status_line = fp.readline()
 
     if status_line.startswith('-'):
-        collectd.error('redis_info plugin: Error response from %s:%d - %r'
-                       % (conf['host'], conf['port'], status_line))
+        collectd.error('%s: Error response from %s:%d - %r'
+                       % (PREFIX, conf['host'], conf['port'], status_line))
         s.close()
         return None
 
@@ -92,8 +95,8 @@ def parse_info(info_lines):
             continue
 
         if ':' not in line:
-            collectd.warning('redis_info plugin: Bad format for info line: %s'
-                             % line)
+            collectd.warning('%s: Bad format for info line: %s'
+                             % (PREFIX, line))
             continue
 
         key, val = line.split(':')
@@ -144,7 +147,7 @@ def configure_callback(conf):
             global REDIS_INFO
             REDIS_INFO[searchObj.group(1)] = val
         else:
-            collectd.warning('redis_info plugin: Unknown config key: %s.' % key )
+            collectd.warning('%s: Unknown config key: %s.' % (PREFIX, key) )
             continue
 
     log_verbose('Configured with host=%s, port=%s, instance name=%s, using_auth=%s' % ( host, port, instance, auth!=None))
@@ -154,12 +157,12 @@ def configure_callback(conf):
 def dispatch_value(info, key, type, plugin_instance=None, type_instance=None):
     """Read a key from info response data and dispatch a value"""
     if key not in info:
-        collectd.warning('redis_info plugin: Info key not found: %s' % key)
+        collectd.warning('%s: Info key not found: %s' % (PREFIX,key))
         return
 
     if plugin_instance is None:
         plugin_instance = 'unknown redis'
-        collectd.error('redis_info plugin: plugin_instance is not set, Info key: %s' % key)
+        collectd.error('%s: plugin_instance is not set, Info key: %s' % (PREFIX,key))
 
     if not type_instance:
         type_instance = key
@@ -171,7 +174,7 @@ def dispatch_value(info, key, type, plugin_instance=None, type_instance=None):
 
     log_verbose('Sending value: %s=%s' % (type_instance, value))
 
-    val = collectd.Values(plugin='redis_info')
+    val = collectd.Values(plugin='redis_keys')
     val.type = type
     val.type_instance = type_instance
     val.plugin_instance = plugin_instance
@@ -186,7 +189,7 @@ def get_metrics( conf ):
     info = fetch_info( conf )
 
     if not info:
-        collectd.error('redis plugin: No info received')
+        collectd.error('%s: No info received' % PREFIX)
         return
 
     plugin_instance = conf['instance']
@@ -206,7 +209,7 @@ def get_metrics( conf ):
 def log_verbose(msg):
     if not VERBOSE_LOGGING:
         return
-    collectd.info('redis plugin [verbose]: %s' % msg)
+    collectd.info('%s [verbose]: %s' % (PREFIX,msg))
 
 
 # register callbacks
