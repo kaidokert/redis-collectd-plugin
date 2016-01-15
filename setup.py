@@ -17,7 +17,7 @@ with open(pkg_dir('README.md'), 'r') as f:
 setup(
     name='redis-collectd-plugin',
     version=version,
-    py_modules=['redis_info'],
+    py_modules=['redis_keys'],
     install_requires=[],
     author='Ciprian Ciubotariu',
     author_email='ciprian.ciubotariu@digital.justice.gov.uk',
