@@ -7,6 +7,9 @@ This is a fork of [redis_info plugin](https://github.com/powdahound/redis-collec
 
 Keys can be monitored with Key_xx settings. For lists/sets/hashes, length of the item is reported, for strings int/float parsed value is reported.
 
+Collectd config keys do not allow punctuation characters, so if the Redis key contains special characters ( anything but alphanumeric and underscore ) define the key like so
+    ``` key_reporting_name "counter" "_redis.syntax::complex:/schtuff```
+
 missing_key_value config parameter sets the value to report when configured keys are missing from Redis, defaults to 0, you might prefer -1 for example
 
 ### Original plugin
