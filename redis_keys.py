@@ -170,7 +170,7 @@ def get_metrics( conf ):
         metric,_ = key_metric(r, keyname)
         if metric is None:
             metric = conf['missing_key_value']
-        dispatch_value({ key : metric}, key, val, plugin_instance)
+        dispatch_value({ key : metric}, key, val[0], plugin_instance)
 
 
 def key_metric(r, key):
