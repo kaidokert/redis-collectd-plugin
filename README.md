@@ -8,9 +8,15 @@ This is a fork of [redis_info plugin](https://github.com/powdahound/redis-collec
 Keys can be monitored with Key_xx settings. For lists/sets/hashes, length of the item is reported, for strings int/float parsed value is reported.
 
 Collectd config keys do not allow punctuation characters, so if the Redis key contains special characters ( anything but alphanumeric and underscore ) define the key like so
-    ``` key_reporting_name "counter" "_redis.syntax::complex:/schtuff```
+
+    key_reporting_name "counter" "_redis.syntax::complex:/schtuff
 
 missing_key_value config parameter sets the value to report when configured keys are missing from Redis, defaults to 0, you might prefer -1 for example
+
+For inspecting Redis, the module can be run from command line like so:
+
+    python redis_keys.py my.redis.org --all --exclude somepattern
+    watch python redis_keys.py my.redis.org --names unacked,task_aborts
 
 ### Original plugin
 
@@ -55,13 +61,17 @@ Add the following to your collectd config **or** use the included redis.conf.
         #Auth "1234"
         Verbose false
         #Instance "instance_1"
+
+        # Celery related keys - prefix with Key_.
+        Key_random_list "gauge"
+        Key_some_string "counter"
+        # Map celery key names to collectd configs using the second value
+        Key_task_aborts  "counter"  "task-aborts"
+        Key_unacked  "gauge"  "unacked"
+        Key_unacked_index  "gauge"  "unacked_index"
+
         # Redis metrics to collect (prefix with Redis_)
-
-        Key__kombu.binding.celery "gauge"
-        Key__kombu.binding.celeryev "gauge"
-        Key_task-aborts "counter"
-        Key_unacked "gauge"
-
+        # Redis info values
         Redis_db0_keys "gauge"
         Redis_uptime_in_seconds "gauge"
         Redis_uptime_in_days "gauge"
