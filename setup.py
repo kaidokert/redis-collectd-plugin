@@ -18,7 +18,7 @@ setup(
     name='redis-collectd-plugin',
     version=version,
     py_modules=['redis_keys'],
-    install_requires=[],
+    install_requires=['redis'],
     author='Ciprian Ciubotariu',
     author_email='ciprian.ciubotariu@digital.justice.gov.uk',
     maintainer='MOJDS',
@@ -27,7 +27,7 @@ setup(
     long_description=readme,
     license='LICENSE',
     keywords=['python', 'ministryofjustice', 'collectd', 'redis'],
-    test_suite='tests',
+    test_suite='test',
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',

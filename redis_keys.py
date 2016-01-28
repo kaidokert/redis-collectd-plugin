@@ -31,8 +31,12 @@
 
 
 import collections
-import redis
-import redis.exceptions
+try:
+    import redis
+    import redis.exceptions
+    HAS_REDIS=True
+except:
+    HAS_REDIS=False
 import re
 import argparse
 
@@ -45,11 +49,12 @@ except:
     class fake_value:
         def dispatch(self):
             pass
+    stand_in = fake_value
     def dbgprint(msg):
         print msg
     stub = lambda x: 0
     collectd = fake_collect(  stub, stub, dbgprint, dbgprint, dbgprint,
-                              lambda plugin: fake_value())
+                              lambda plugin: stand_in())
 
 # Verbose logging on/off. Override in config by specifying 'Verbose'.
 VERBOSE_LOGGING = False
@@ -62,6 +67,9 @@ PREFIX = 'redis_keys plugin'
 
 def configure_callback(conf):
     """Receive configuration block"""
+    if not HAS_REDIS:
+        collectd.error("This plugin requires python redis library")
+        return
     host = None
     port = None
     auth = None
@@ -134,6 +142,8 @@ def dispatch_value(info, key, type, plugin_instance=None, type_instance=None):
     val.dispatch()
 
 def read_callback():
+    if not HAS_REDIS:
+        return
     for conf in CONFIGS:
         get_metrics( conf )
 
@@ -142,8 +152,11 @@ def get_metrics( conf ):
     r = redis.StrictRedis(host=conf['host'],port=conf['port'], password=conf['auth'])
     try:
         info = r.info()
-    except redis.exceptions.ConnectionError,e:
-        collectd.error('%s: Error connecting to %s:%d - %r'
+    except TypeError, e:
+        collectd.error('%s: Invalid configuration, missing port ? conf:%s:%r - %r'
+                       % (PREFIX, conf['host'], conf['port'], e))
+    except redis.exceptions.ConnectionError, e:
+        collectd.error('%s: Error connecting to conf:%s:%d - %r'
                        % (PREFIX, conf['host'], conf['port'], e))
 
     if not info:
@@ -204,15 +217,22 @@ def list_all(r, exclude):
         print k, key_metric(r, k)
 
 if __name__=='__main__':
+    if not HAS_REDIS:
+        print("This script requires python redis library")
+
     parser = argparse.ArgumentParser()
     parser.add_argument('host')
     parser.add_argument('--port', type=int, default=6379)
     parser.add_argument('--all', action='store_true')
+    parser.add_argument('--info', action='store_true')
     parser.add_argument('--names')
     parser.add_argument('--exclude', default= '^:1.*')
     args = parser.parse_args()
     if len(args.__dict__):
         r = redis.StrictRedis(host=args.host,port=args.port)
+        if args.info:
+            for k,v in r.info().items():
+                print k,v
         if args.all:
             list_all(r, args.exclude)
         if args.names:
