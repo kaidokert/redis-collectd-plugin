@@ -1,6 +1,8 @@
 redis-collectd-plugin
 =====================
 
+[![Build Status](https://travis-ci.org/kaidokert/redis-collectd-plugin.svg?branch=master)](https://travis-ci.org/kaidokert/redis-collectd-plugin)
+
 ### Fork description
 
 This is a fork of [redis_info plugin](https://github.com/powdahound/redis-collectd-plugin). It should be compatible in every way, except it uses Python redis library to fetch the info, and also allows to check sizes/values of arbitrary keys - which is useful for monitoring things like Celery queue lengths.
