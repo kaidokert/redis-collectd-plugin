@@ -75,6 +75,8 @@ def configure_callback(conf):
     auth = None
     instance = None
     missing_key_value = 0
+    redis_keys = {}
+    keyinfo_keys = {}
 
     redis_pat = re.compile(r'redis_(.*)$', re.M|re.I)
     key_pat = re.compile(r'key_(.*)$', re.M|re.I)
@@ -100,16 +102,21 @@ def configure_callback(conf):
             missing_key_value = int(val)
         elif search_redis:
             log_verbose('Matching redis expression found: key: %s - value: %s' % (search_redis.group(1), val))
-            global REDIS_INFO
-            REDIS_INFO[search_redis.group(1)] = val
+            redis_keys[search_redis.group(1)] = val
         elif search_key:
             log_verbose('Matching key expression found: key: %s - value: %s' % (search_key.group(1), val))
-            global KEY_INFO
-            KEY_INFO[search_key.group(1)] = node.values
+            keyinfo_keys[search_key.group(1)] = node.values
         else:
             collectd.warning('%s: Unknown config key: %s.' % (PREFIX, key) )
             continue
 
+    if instance is None:
+        instance = '{}:{}'.format(host, port)
+
+    global REDIS_INFO
+    global KEY_INFO
+    REDIS_INFO[instance] = redis_keys
+    KEY_INFO[instance] = keyinfo_keys
     log_verbose('Configured with host=%s, port=%s, instance name=%s, using_auth=%s' % ( host, port, instance, auth!=None))
 
     CONFIGS.append( { 'host': host, 'port': port, 'auth':auth, 'instance':instance, 'missing_key_value' : missing_key_value } )
@@ -164,10 +171,8 @@ def get_metrics( conf ):
         return
 
     plugin_instance = conf['instance']
-    if plugin_instance is None:
-        plugin_instance = '{host}:{port}'.format(host=conf['host'], port=conf['port'])
 
-    for key, val in REDIS_INFO.iteritems():
+    for key, val in REDIS_INFO[plugin_instance].iteritems():
         #log_verbose('key: %s - value: %s' % (key, val))
         if key == 'total_connections_received':
             dispatch_value(info, 'total_connections_received', 'counter', plugin_instance, 'connections_received')
@@ -176,7 +181,7 @@ def get_metrics( conf ):
         else:
             dispatch_value(info, key, val, plugin_instance)
 
-    for key, val in KEY_INFO.items():
+    for key, val in KEY_INFO[plugin_instance].items():
         keyname = key
         if len(val) > 1:
             keyname = val[1]
